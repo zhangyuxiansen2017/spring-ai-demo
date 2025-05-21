@@ -110,6 +110,67 @@
         .tab-content.active {
             display: block;
         }
+        .user-message {
+            background-color: #e6f7ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .ai-response {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+        /* 添加文件上传相关样式 */
+        .upload-section, .text-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        
+        .upload-section h4, .text-section h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        .upload-section p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        #file-upload {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        /* 添加等待动画样式 */
+        .waiting-animation {
+            display: inline-block;
+            overflow: hidden;
+            height: 1.2em;
+            vertical-align: bottom;
+            margin-left: 5px;
+        }
+        
+        .waiting-animation:after {
+            display: inline-block;
+            content: "....";
+            animation: dots 1.5s steps(5, end) infinite;
+            width: 0;
+            overflow: hidden;
+        }
+        
+        @keyframes dots {
+            0%, 20% { width: 0; }
+            40% { width: 0.2em; }
+            60% { width: 0.4em; }
+            80% { width: 0.6em; }
+            100% { width: 0.8em; }
+        }
     </style>
 </head>
 <body>
@@ -145,10 +206,23 @@
         <div id="document-tab" class="tab-content">
             <div class="document-upload">
                 <h3>添加知识到知识库</h3>
-                <textarea id="document-content" placeholder="输入文档内容..."></textarea>
-                <input type="text" id="document-metadata" placeholder="文档来源/标题">
-                <button id="add-document-button">添加到知识库</button>
-                <div id="document-status"></div>
+                
+                <div class="upload-section">
+                    <h4>上传文件</h4>
+                    <p>支持的格式: PDF, Word (docx), 文本文件 (txt, md, csv)</p>
+                    <input type="file" id="file-upload" accept=".pdf,.docx,.txt,.md,.csv">
+                    <input type="text" id="file-metadata" placeholder="文档来源/标题">
+                    <button id="upload-file-button">上传文件</button>
+                    <div id="file-upload-status"></div>
+                </div>
+                
+                <div class="text-section">
+                    <h4>直接输入文本</h4>
+                    <textarea id="document-content" placeholder="输入文档内容..."></textarea>
+                    <input type="text" id="document-metadata" placeholder="文档来源/标题">
+                    <button id="add-document-button">添加到知识库</button>
+                    <div id="document-status"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -184,7 +258,8 @@
                 if (!message) return;
 
                 messageInput.value = '';
-                outputDiv.innerHTML += `<strong>问题:</strong> ${message}\n<strong>回答:</strong> `;
+                // 修改显示格式，添加等待动画
+                outputDiv.innerHTML += `<div class="user-message">问题: ${message}</div><div class="ai-response">回答: <span class="waiting-animation"></span>`;
                 
                 if (eventSource) {
                     eventSource.close();
@@ -193,18 +268,35 @@
                 eventSource = new EventSource(`/ai/generateStream?message=${encodeURIComponent(message)}`);
                 let textQueue = [];
                 let isProcessing = false;
+                let firstChunkReceived = false;
 
                 function processTextQueue() {
                     if (textQueue.length === 0 || isProcessing) return;
                     
                     isProcessing = true;
                     const text = textQueue.shift();
+                    
+                    // 当收到第一个文本块时，移除等待动画
+                    if (!firstChunkReceived) {
+                        firstChunkReceived = true;
+                        const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                        if (lastResponseDiv) {
+                            lastResponseDiv.innerHTML = "回答: ";
+                        }
+                    }
+                    
                     let index = 0;
                     
                     function displayNextChar() {
                         if (index < text.length) {
-                            outputDiv.innerHTML += text[index];
-                            outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
+                            // 获取最后一个AI回答div
+                            const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                            if (lastResponseDiv) {
+                                // 追加文本到最后一个回答div
+                                const currentContent = lastResponseDiv.innerHTML;
+                                lastResponseDiv.innerHTML = currentContent + text[index];
+                                outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
+                            }
                             index++;
                             setTimeout(displayNextChar, 20);
                         } else {
@@ -225,7 +317,14 @@
                     eventSource.close();
                     const checkComplete = setInterval(() => {
                         if (textQueue.length === 0 && !isProcessing) {
-                            outputDiv.innerHTML += '\n\n';
+                            // 如果没有收到任何文本，移除等待动画并显示错误消息
+                            if (!firstChunkReceived) {
+                                const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                                if (lastResponseDiv) {
+                                    lastResponseDiv.innerHTML = "回答: 抱歉，无法获取回复。";
+                                }
+                            }
+                            outputDiv.innerHTML += '</div>';  // 关闭AI回答div
                             outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
                             clearInterval(checkComplete);
                         }
@@ -251,7 +350,8 @@
                 if (!message) return;
 
                 ragMessageInput.value = '';
-                ragOutputDiv.innerHTML += `<strong>问题:</strong> ${message}\n<strong>回答:</strong> `;
+                // 修改显示格式，添加等待动画
+                ragOutputDiv.innerHTML += `<div class="user-message">问题: ${message}</div><div class="ai-response">回答: <span class="waiting-animation"></span>`;
                 
                 if (ragEventSource) {
                     ragEventSource.close();
@@ -260,18 +360,35 @@
                 ragEventSource = new EventSource(`/rag/generateStream?message=${encodeURIComponent(message)}`);
                 let textQueue = [];
                 let isProcessing = false;
+                let firstChunkReceived = false;
 
                 function processTextQueue() {
                     if (textQueue.length === 0 || isProcessing) return;
                     
                     isProcessing = true;
                     const text = textQueue.shift();
+                    
+                    // 当收到第一个文本块时，移除等待动画
+                    if (!firstChunkReceived) {
+                        firstChunkReceived = true;
+                        const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                        if (lastResponseDiv) {
+                            lastResponseDiv.innerHTML = "回答: ";
+                        }
+                    }
+                    
                     let index = 0;
                     
                     function displayNextChar() {
                         if (index < text.length) {
-                            ragOutputDiv.innerHTML += text[index];
-                            ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
+                            // 获取最后一个AI回答div
+                            const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                            if (lastResponseDiv) {
+                                // 追加文本到最后一个回答div
+                                const currentContent = lastResponseDiv.innerHTML;
+                                lastResponseDiv.innerHTML = currentContent + text[index];
+                                ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
+                            }
                             index++;
                             setTimeout(displayNextChar, 20);
                         } else {
@@ -292,7 +409,14 @@
                     ragEventSource.close();
                     const checkComplete = setInterval(() => {
                         if (textQueue.length === 0 && !isProcessing) {
-                            ragOutputDiv.innerHTML += '\n\n';
+                            // 如果没有收到任何文本，移除等待动画并显示错误消息
+                            if (!firstChunkReceived) {
+                                const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                                if (lastResponseDiv) {
+                                    lastResponseDiv.innerHTML = "回答: 抱歉，无法获取回复。";
+                                }
+                            }
+                            ragOutputDiv.innerHTML += '</div>';  // 关闭AI回答div
                             ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
                             clearInterval(checkComplete);
                         }
@@ -340,6 +464,46 @@
                 })
                 .catch(error => {
                     documentStatus.textContent = '添加失败: ' + error.message;
+                });
+            });
+            
+            // 添加文件上传相关JavaScript
+            const fileUpload = document.getElementById('file-upload');
+            const fileMetadata = document.getElementById('file-metadata');
+            const uploadFileButton = document.getElementById('upload-file-button');
+            const fileUploadStatus = document.getElementById('file-upload-status');
+            
+            uploadFileButton.addEventListener('click', function() {
+                const file = fileUpload.files[0];
+                const metadata = fileMetadata.value.trim();
+                
+                if (!file) {
+                    fileUploadStatus.textContent = '请选择文件';
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('metadata', metadata || '未知来源');
+                
+                fileUploadStatus.textContent = '上传中...';
+                
+                fetch('/document/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        fileUploadStatus.textContent = `${data.message}，文件名: ${data.filename}，分块数: ${data.chunks}`;
+                        fileUpload.value = '';
+                        fileMetadata.value = '';
+                    } else {
+                        fileUploadStatus.textContent = data.message;
+                    }
+                })
+                .catch(error => {
+                    fileUploadStatus.textContent = '上传失败: ' + error.message;
                 });
             });
         });

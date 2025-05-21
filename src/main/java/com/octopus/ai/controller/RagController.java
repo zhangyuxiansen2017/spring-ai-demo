@@ -2,6 +2,7 @@ package com.octopus.ai.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
@@ -24,11 +25,12 @@ public class RagController {
 
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
-
+//    private final JdbcChatMemoryRepository chatMemoryRepository;
     @Autowired
-    public RagController(ChatClient chatClient, RedisVectorStore vectorStore) {
+    public RagController(ChatClient chatClient, RedisVectorStore vectorStore, JdbcChatMemoryRepository chatMemoryRepository) {
         this.chatClient = chatClient;
         this.vectorStore = vectorStore;
+//        this.chatMemoryRepository = chatMemoryRepository;
     }
 
     @PostMapping("/document")

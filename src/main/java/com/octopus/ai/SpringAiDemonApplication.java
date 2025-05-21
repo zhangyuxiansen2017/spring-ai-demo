@@ -24,6 +24,4 @@ public class SpringAiDemonApplication {
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }
-
-
 }
