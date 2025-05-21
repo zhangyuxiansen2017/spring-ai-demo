@@ -1,0 +1,30 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: spring-ai-demon
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        options:
+          model: mistral:7b
+          temperature: 0.7
+      embedding:
+        options:
+          model: mistral:7b
+    vectorstore:
+      redis:
+        initialize-schema: true
+        index-name: custom-index
+        prefix: custom-prefix
+  data:
+    redis:
+      host: 192.168.1.88
+      port: 6379
+      password: 1991820
+  mvc:
+    static-path-pattern: /**
+  web:
+    resources:
+      static-locations: classpath:/static/

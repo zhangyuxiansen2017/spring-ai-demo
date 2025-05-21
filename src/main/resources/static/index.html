@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 对话</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .chat-area {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        .input-area {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        #send-button {
+            padding: 10px 20px;
+            margin-left: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #send-button:hover {
+            background-color: #45a049;
+        }
+        #output {
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        .document-upload {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+        }
+        .document-upload h3 {
+            margin-top: 0;
+        }
+        .document-upload textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .document-upload input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .document-upload button {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .document-upload button:hover {
+            background-color: #0b7dda;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-bottom: none;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI 对话</h1>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="chat">普通对话</div>
+            <div class="tab" data-tab="rag">知识库对话</div>
+            <div class="tab" data-tab="document">添加知识</div>
+        </div>
+        
+        <div id="chat-tab" class="tab-content active">
+            <div class="chat-area">
+                <div id="output"></div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="请输入您的问题..." autofocus>
+                <button id="send-button">发送</button>
+            </div>
+        </div>
+        
+        <div id="rag-tab" class="tab-content">
+            <div class="chat-area">
+                <div id="rag-output"></div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="rag-message-input" placeholder="基于知识库提问..." autofocus>
+                <button id="rag-send-button">发送</button>
+            </div>
+        </div>
+        
+        <div id="document-tab" class="tab-content">
+            <div class="document-upload">
+                <h3>添加知识到知识库</h3>
+                <textarea id="document-content" placeholder="输入文档内容..."></textarea>
+                <input type="text" id="document-metadata" placeholder="文档来源/标题">
+                <button id="add-document-button">添加到知识库</button>
+                <div id="document-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 标签页切换
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // 移除所有活动标签
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // 激活当前标签
+                    this.classList.add('active');
+                    document.getElementById(tabId + '-tab').classList.add('active');
+                });
+            });
+            
+            // 普通聊天功能
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const outputDiv = document.getElementById('output');
+            let eventSource = null;
+
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+
+                messageInput.value = '';
+                outputDiv.innerHTML += `<strong>问题:</strong> ${message}\n<strong>回答:</strong> `;
+                
+                if (eventSource) {
+                    eventSource.close();
+                }
+
+                eventSource = new EventSource(`/ai/generateStream?message=${encodeURIComponent(message)}`);
+                let textQueue = [];
+                let isProcessing = false;
+
+                function processTextQueue() {
+                    if (textQueue.length === 0 || isProcessing) return;
+                    
+                    isProcessing = true;
+                    const text = textQueue.shift();
+                    let index = 0;
+                    
+                    function displayNextChar() {
+                        if (index < text.length) {
+                            outputDiv.innerHTML += text[index];
+                            outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
+                            index++;
+                            setTimeout(displayNextChar, 20);
+                        } else {
+                            isProcessing = false;
+                            processTextQueue();
+                        }
+                    }
+                    
+                    displayNextChar();
+                }
+
+                eventSource.onmessage = function(event) {
+                    textQueue.push(event.data);
+                    processTextQueue();
+                };
+
+                eventSource.onerror = function() {
+                    eventSource.close();
+                    const checkComplete = setInterval(() => {
+                        if (textQueue.length === 0 && !isProcessing) {
+                            outputDiv.innerHTML += '\n\n';
+                            outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
+                            clearInterval(checkComplete);
+                        }
+                    }, 100);
+                };
+            }
+
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // RAG聊天功能
+            const ragMessageInput = document.getElementById('rag-message-input');
+            const ragSendButton = document.getElementById('rag-send-button');
+            const ragOutputDiv = document.getElementById('rag-output');
+            let ragEventSource = null;
+
+            function sendRagMessage() {
+                const message = ragMessageInput.value.trim();
+                if (!message) return;
+
+                ragMessageInput.value = '';
+                ragOutputDiv.innerHTML += `<strong>问题:</strong> ${message}\n<strong>回答:</strong> `;
+                
+                if (ragEventSource) {
+                    ragEventSource.close();
+                }
+
+                ragEventSource = new EventSource(`/rag/generateStream?message=${encodeURIComponent(message)}`);
+                let textQueue = [];
+                let isProcessing = false;
+
+                function processTextQueue() {
+                    if (textQueue.length === 0 || isProcessing) return;
+                    
+                    isProcessing = true;
+                    const text = textQueue.shift();
+                    let index = 0;
+                    
+                    function displayNextChar() {
+                        if (index < text.length) {
+                            ragOutputDiv.innerHTML += text[index];
+                            ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
+                            index++;
+                            setTimeout(displayNextChar, 20);
+                        } else {
+                            isProcessing = false;
+                            processTextQueue();
+                        }
+                    }
+                    
+                    displayNextChar();
+                }
+
+                ragEventSource.onmessage = function(event) {
+                    textQueue.push(event.data);
+                    processTextQueue();
+                };
+
+                ragEventSource.onerror = function() {
+                    ragEventSource.close();
+                    const checkComplete = setInterval(() => {
+                        if (textQueue.length === 0 && !isProcessing) {
+                            ragOutputDiv.innerHTML += '\n\n';
+                            ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
+                            clearInterval(checkComplete);
+                        }
+                    }, 100);
+                };
+            }
+
+            ragSendButton.addEventListener('click', sendRagMessage);
+            ragMessageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendRagMessage();
+                }
+            });
+            
+            // 添加文档功能
+            const documentContent = document.getElementById('document-content');
+            const documentMetadata = document.getElementById('document-metadata');
+            const addDocumentButton = document.getElementById('add-document-button');
+            const documentStatus = document.getElementById('document-status');
+            
+            addDocumentButton.addEventListener('click', function() {
+                const content = documentContent.value.trim();
+                const metadata = documentMetadata.value.trim();
+                
+                if (!content) {
+                    documentStatus.textContent = '请输入文档内容';
+                    return;
+                }
+                
+                fetch('/rag/document', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        metadata: metadata || '未知来源'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    documentStatus.textContent = data.message;
+                    documentContent.value = '';
+                    documentMetadata.value = '';
+                })
+                .catch(error => {
+                    documentStatus.textContent = '添加失败: ' + error.message;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
