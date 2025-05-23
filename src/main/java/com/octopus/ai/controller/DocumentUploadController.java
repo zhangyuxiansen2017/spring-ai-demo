@@ -31,6 +31,12 @@ public class DocumentUploadController {
         this.vectorStore = vectorStore;
     }
 
+    /**
+     * 文档上传支持 csv、md、txt、docx、pdf
+     * @param file
+     * @param metadata
+     * @return
+     */
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> uploadFile(
             @RequestParam("file") MultipartFile file,

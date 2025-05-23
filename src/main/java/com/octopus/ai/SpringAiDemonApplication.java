@@ -18,6 +18,11 @@ public class SpringAiDemonApplication {
     }
 
 
+    /**
+     * 基于内存的对话记忆,记住前10次对话
+     * @param chatModel
+     * @return
+     */
     @Bean
     public ChatClient chatClient(DeepSeekChatModel chatModel) {
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory.builder().maxMessages(10).build();

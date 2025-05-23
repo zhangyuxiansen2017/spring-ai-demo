@@ -31,6 +31,11 @@ public class RagController {
         this.vectorStore = vectorStore;
     }
 
+    /**
+     * 用户输入text形式的知识库上传
+     * @param payload
+     * @return
+     */
     @PostMapping("/document")
     public Map<String, String> addDocument(@RequestBody Map<String, String> payload) {
         String content = payload.get("content");
@@ -45,6 +50,11 @@ public class RagController {
         return Map.of("status", "success", "message", "文档已添加到知识库");
     }
 
+    /**
+     * 基于用户上传的文档进行对户
+     * @param message
+     * @return
+     */
     @GetMapping("/generate")
     public Map<String, String> generate(@RequestParam(value = "message") String message) {
         List<Document> similarDocuments = vectorStore.similaritySearch(
@@ -57,8 +67,14 @@ public class RagController {
         return Map.of("generation", content);
     }
 
+    /**
+     * 基于用户上传的文档进行对户(流式)
+     * @param message
+     * @return
+     */
     @GetMapping(value = "/generateStream", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
     public Flux<String> generateStream(@RequestParam(value = "message") String message) {
+        //检索文档,使用similaritySearch,检索出来的取前三个
         List<Document> similarDocuments = vectorStore.similaritySearch(SearchRequest.builder().query(message).topK(3).build());
         assert similarDocuments != null;
         String context = buildContext(similarDocuments);
@@ -71,6 +87,11 @@ public class RagController {
         return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
     }
 
+    /**
+     * 将检索出来的相关性文档拼接起来
+     * @param documents
+     * @return
+     */
     private String buildContext(List<Document> documents) {
         StringBuilder context = new StringBuilder();
         for (Document doc : documents) {
