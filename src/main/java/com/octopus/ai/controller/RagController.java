@@ -25,12 +25,10 @@ public class RagController {
 
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
-//    private final JdbcChatMemoryRepository chatMemoryRepository;
     @Autowired
-    public RagController(ChatClient chatClient, RedisVectorStore vectorStore, JdbcChatMemoryRepository chatMemoryRepository) {
+    public RagController(ChatClient chatClient, RedisVectorStore vectorStore) {
         this.chatClient = chatClient;
         this.vectorStore = vectorStore;
-//        this.chatMemoryRepository = chatMemoryRepository;
     }
 
     @PostMapping("/document")

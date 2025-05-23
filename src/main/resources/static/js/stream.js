@@ -1,4 +1,4 @@
-const eventSource = new EventSource('/ai/generateStream?message=你好');
+const eventSource = new EventSource('/ai/generateStreamInMemory?message=你好');
 const outputDiv = document.getElementById('output');
 let buffer = '';
 

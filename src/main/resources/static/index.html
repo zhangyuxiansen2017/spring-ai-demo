@@ -265,7 +265,7 @@
                     eventSource.close();
                 }
 
-                eventSource = new EventSource(`/ai/generateStream?message=${encodeURIComponent(message)}`);
+                eventSource = new EventSource(`/ai/generateStreamInMemory?message=${encodeURIComponent(message)}`);
                 let textQueue = [];
                 let isProcessing = false;
                 let firstChunkReceived = false;

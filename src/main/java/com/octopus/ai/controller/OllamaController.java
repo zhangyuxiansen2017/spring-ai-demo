@@ -2,6 +2,10 @@ package com.octopus.ai.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
@@ -21,12 +25,13 @@ import java.util.Map;
 @RestController
 public class OllamaController {
     private final ChatClient chatClient;
-    private final OllamaChatModel chatModel;
+    private final DeepSeekChatModel chatModel;
+//    private final OllamaChatModel chatModel;
     private final OllamaEmbeddingModel ollamaEmbeddingModel;
 
 
     @Autowired
-    public OllamaController(ChatClient chatClient, OllamaChatModel chatModel, OllamaEmbeddingModel ollamaEmbeddingModel) {
+    public OllamaController(ChatClient chatClient, DeepSeekChatModel chatModel, OllamaEmbeddingModel ollamaEmbeddingModel) {
         this.chatClient = chatClient;
         this.chatModel = chatModel;
         this.ollamaEmbeddingModel = ollamaEmbeddingModel;
@@ -50,7 +55,13 @@ public class OllamaController {
 
     @GetMapping(value = "/ai/generateStreamInMemory", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
     public Flux<String> generateStreamInMemory(@RequestParam(value = "message") String message) {
-        return this.chatClient.prompt().user(message).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
+
+        String systemPromptText = "你是一个手机流量套餐的客服代表，你叫小智。可以帮助用户选择最合适的流量套餐产品,如果无法从提供的信息中找到答案，请不要回答，不要编造答案。可以选择的套餐包括:经济套餐,月费50元,10G流量;畅游套餐,月费180元,100G流量;无限套餐,月费300元,1000G流量;校园套餐,月费150元,200G流量，仅限在校生;";
+        SystemMessage systemMessage = new SystemMessage(systemPromptText);
+        UserMessage userMessage = new UserMessage(message);
+        Prompt prompt = new Prompt(List.of(systemMessage,userMessage));
+
+        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
     }
 
     @GetMapping("/ai/embedding/text")
