@@ -6,7 +6,7 @@ spring:
   ai:
     deepseek:
       base-url: https://api.deepseek.com
-      api-key: sk-e6da262276184617b1581842ca663b50
+      api-key: 你的deepseek的apikey
     ollama:
 #      base-url: http://localhost:11434
 #      chat:
