@@ -4,30 +4,75 @@ spring:
   application:
     name: spring-ai-demon
   ai:
-#    ollama:
+    deepseek:
+      base-url: https://api.deepseek.com
+      api-key: sk-e6da262276184617b1581842ca663b50
+    ollama:
 #      base-url: http://localhost:11434
 #      chat:
 #        options:
 #          model: mistral:7b
 #          temperature: 0.7
-#      embedding:
-#        options:
-#          model: mistral:7b
-    deepseek:
-      base-url: https://api.deepseek.com
-      api-key: xxxxx
+      embedding:
+        options:
+          model: mistral:7b
     vectorstore:
-      redis:
+      milvus:
+        client:
+          host: localhost
+          port: 19530
+        database-name: default
+        collectionName: "vector_store"
+        embeddingDimension: 4096
+        indexType: IVF_FLAT
+        metricType: COSINE
         initialize-schema: true
-        index-name: custom-index
-        prefix: custom-prefix
-  data:
-    redis:
-      host: 192.168.1.88
-      port: 6379
-      password: xxxxx
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+            platform: mariadb
+    mcp:
+      client:
+        root-change-notification: false
+        type: async
+        stdio:
+          servers-configuration: classpath:mcp-servers-config.json
+#        sse:
+#          connections:
+#                  amap:
+#                    url: https://mcp.amap.com
+#                    sse-endpoint: /sse?key=你申请的key
+  #          connections:
+#            filesystem:
+#              command: docker
+#              args:
+#                - "run"
+#                - "-i"
+#                - "--rm"
+#                - "--mount"
+#                - "type=bind,src=/Volumes/文档,dst=/projects/文档"
+#                - "mcp/filesystem"
+#                - "/projects"
+
+  datasource:
+    url: jdbc:mysql://192.168.1.88:3306/ai_demo?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
+    username: root
+    password: 你的数据库密码
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
   mvc:
     static-path-pattern: /**
   web:
     resources:
       static-locations: classpath:/static/
+
+# 安装milvus
+# curl -sfL https://raw.githubusercontent.com/milvus-io/milvus/master/scripts/standalone_embed.sh -o standalone_embed.sh
+# bash standalone_embed.sh start
+# 安装milvus控制界面
+# docker run -p 8000:3000 -e MILVUS_URL={milvus server IP}:19530 zilliz/attu:v2.5
+# 调用12306查询实时车票信息 https://modelscope.cn/mcp/servers/@Joooook/12306-mcp

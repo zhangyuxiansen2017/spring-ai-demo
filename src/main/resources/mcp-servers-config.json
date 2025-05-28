@@ -1,0 +1,29 @@
+{
+    "mcpServers": {
+        "filesystem": {
+            "command": "docker",
+            "args": [
+                "run",
+                "-i",
+                "--rm",
+                "--mount", "type=bind,src=/Volumes/文档,dst=/projects/文档",
+                "mcp/filesystem",
+                "/projects"
+            ]
+        },
+        "12306-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "12306-mcp"
+            ]
+        },
+        "amap-maps": {
+            "command": "npx",
+            "args": ["-y", "@amap/amap-maps-mcp-server"],
+            "env": {
+                "AMAP_MAPS_API_KEY": "你申请的key"
+            }
+        }
+    }
+}

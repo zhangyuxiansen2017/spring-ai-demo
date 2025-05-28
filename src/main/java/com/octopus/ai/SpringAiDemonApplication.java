@@ -1,11 +1,11 @@
 package com.octopus.ai;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
-import org.springframework.ai.ollama.OllamaChatModel;
-import org.springframework.ai.ollama.OllamaEmbeddingModel;
+import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -24,10 +24,19 @@ public class SpringAiDemonApplication {
      * @return
      */
     @Bean
-    public ChatClient chatClient(DeepSeekChatModel chatModel) {
-        MessageWindowChatMemory chatMemory = MessageWindowChatMemory.builder().maxMessages(10).build();
+    public ChatClient chatClient(DeepSeekChatModel chatModel, JdbcChatMemoryRepository chatMemoryRepository, ToolCallbackProvider tools) {
+        MessageWindowChatMemory chatMemory = MessageWindowChatMemory.builder()
+                .chatMemoryRepository(chatMemoryRepository)
+                .maxMessages(10)
+                .build();
+
+        PromptChatMemoryAdvisor promptChatMemoryAdvisor = PromptChatMemoryAdvisor
+                .builder(chatMemory)
+                .build();
+
         return ChatClient.builder(chatModel)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors(promptChatMemoryAdvisor)
+                .defaultToolCallbacks(tools)
                 .build();
     }
 }

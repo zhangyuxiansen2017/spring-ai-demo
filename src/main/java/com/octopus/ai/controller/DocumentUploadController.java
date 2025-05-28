@@ -7,11 +7,13 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.redis.RedisVectorStore;
+import org.springframework.ai.vectorstore.milvus.MilvusVectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -24,10 +26,10 @@ import java.util.*;
 public class DocumentUploadController {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentUploadController.class);
-    private final VectorStore vectorStore;
+    private final MilvusVectorStore vectorStore;
 
     @Autowired
-    public DocumentUploadController(RedisVectorStore vectorStore) {
+    public DocumentUploadController(MilvusVectorStore vectorStore) {
         this.vectorStore = vectorStore;
     }
 

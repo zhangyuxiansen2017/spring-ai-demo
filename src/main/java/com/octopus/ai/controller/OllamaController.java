@@ -9,7 +9,6 @@ import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
-import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.OllamaEmbeddingModel;
 import org.springframework.ai.ollama.api.OllamaOptions;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +27,7 @@ public class OllamaController {
     private final DeepSeekChatModel chatModel;
 //    private final OllamaChatModel chatModel;
     private final OllamaEmbeddingModel ollamaEmbeddingModel;
+
 
 
     @Autowired
@@ -58,6 +58,7 @@ public class OllamaController {
         return Map.of("generation", content);
     }
 
+
     /**
      * 流式输出,支持对话记忆
      * @param message
@@ -65,6 +66,19 @@ public class OllamaController {
      */
     @GetMapping(value = "/ai/generateStreamInMemory", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
     public Flux<String> generateStreamInMemory(@RequestParam(value = "message") String message) {
+        UserMessage userMessage = new UserMessage(message);
+        Prompt prompt = new Prompt(List.of(userMessage));
+        //固定聊天记忆对话ID为001,可自己在聊天创建时生成一个id,每次对话再由前端传入此id,使用内存形式存储对话历史信息,配置在启动类处
+        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
+    }
+
+    /**
+     * 流式输出,支持对话记忆,指定系统级的Prompt进行约束
+     * @param message
+     * @return
+     */
+    @GetMapping(value = "/ai/generateStreamInMemoryPrompt", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
+    public Flux<String> generateStreamInMemoryPrompt(@RequestParam(value = "message") String message) {
         String systemPromptText = "你是一个手机流量套餐的客服代表，你叫小智。可以帮助用户选择最合适的流量套餐产品,如果无法从提供的信息中找到答案，请不要回答，不要编造答案。" +
                 "可以选择的套餐包括:经济套餐,月费50元,10G流量;畅游套餐,月费180元,100G流量;无限套餐,月费300元,1000G流量;校园套餐,月费150元,200G流量，仅限在校生;";
         //系统级的message,role:system
@@ -96,7 +110,7 @@ public class OllamaController {
      */
     @GetMapping("/ai/embedding/texts")
     public EmbeddingResponse embedding(List<String> texts) {
-        EmbeddingOptions build = OllamaOptions.builder().model("mistral:7b").build();
+        EmbeddingOptions build = OllamaOptions.builder().build();
         EmbeddingRequest request = new EmbeddingRequest(texts, build);
         return ollamaEmbeddingModel.call(request);
     }
