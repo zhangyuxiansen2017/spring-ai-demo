@@ -6,7 +6,7 @@ spring:
   ai:
     deepseek:
       base-url: https://api.deepseek.com
-      api-key: 你的deepseek的apikey
+      api-key: xxxx
     ollama:
 #      base-url: http://localhost:11434
 #      chat:
@@ -15,7 +15,7 @@ spring:
 #          temperature: 0.7
       embedding:
         options:
-          model: mistral:7b
+          model: hf.co/Qwen/Qwen3-Embedding-0.6B-GGUF:latest
     vectorstore:
       milvus:
         client:
@@ -23,7 +23,7 @@ spring:
           port: 19530
         database-name: default
         collectionName: "vector_store"
-        embeddingDimension: 4096
+        embeddingDimension: 1024
         indexType: IVF_FLAT
         metricType: COSINE
         initialize-schema: true
@@ -57,9 +57,9 @@ spring:
 #                - "/projects"
 
   datasource:
-    url: jdbc:mysql://192.168.1.88:3306/ai_demo?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
+    url: jdbc:mysql://xxx:3306/ai_demo?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
     username: root
-    password: 你的数据库密码
+    password: xxx
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:

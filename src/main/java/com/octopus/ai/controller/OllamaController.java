@@ -53,8 +53,8 @@ public class OllamaController {
      * @return
      */
     @GetMapping("/ai/generateInMemory")
-    public Map<String, String> generateInMemory(@RequestParam(value = "message") String message) {
-        String content = this.chatClient.prompt().user(message).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).call().content();
+    public Map<String, String> generateInMemory(@RequestParam(value = "message") String message,@RequestParam(value = "identityId")String identityId) {
+        String content = this.chatClient.prompt().user(message).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, identityId)).call().content();
         return Map.of("generation", content);
     }
 
@@ -65,11 +65,11 @@ public class OllamaController {
      * @return
      */
     @GetMapping(value = "/ai/generateStreamInMemory", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
-    public Flux<String> generateStreamInMemory(@RequestParam(value = "message") String message) {
+    public Flux<String> generateStreamInMemory(@RequestParam(value = "message") String message,@RequestParam(value = "identityId")String identityId) {
         UserMessage userMessage = new UserMessage(message);
         Prompt prompt = new Prompt(List.of(userMessage));
         //固定聊天记忆对话ID为001,可自己在聊天创建时生成一个id,每次对话再由前端传入此id,使用内存形式存储对话历史信息,配置在启动类处
-        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
+        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, identityId)).stream().content();
     }
 
     /**
@@ -78,7 +78,7 @@ public class OllamaController {
      * @return
      */
     @GetMapping(value = "/ai/generateStreamInMemoryPrompt", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
-    public Flux<String> generateStreamInMemoryPrompt(@RequestParam(value = "message") String message) {
+    public Flux<String> generateStreamInMemoryPrompt(@RequestParam(value = "message") String message,@RequestParam(value = "identityId")String identityId) {
         String systemPromptText = "你是一个手机流量套餐的客服代表，你叫小智。可以帮助用户选择最合适的流量套餐产品,如果无法从提供的信息中找到答案，请不要回答，不要编造答案。" +
                 "可以选择的套餐包括:经济套餐,月费50元,10G流量;畅游套餐,月费180元,100G流量;无限套餐,月费300元,1000G流量;校园套餐,月费150元,200G流量，仅限在校生;";
         //系统级的message,role:system
@@ -88,7 +88,7 @@ public class OllamaController {
         //还有ToolResponseMessage、AssistantMessage
         Prompt prompt = new Prompt(List.of(systemMessage,userMessage));
         //固定聊天记忆对话ID为001,可自己在聊天创建时生成一个id,每次对话再由前端传入此id,使用内存形式存储对话历史信息,配置在启动类处
-        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
+        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, identityId)).stream().content();
     }
 
     /**

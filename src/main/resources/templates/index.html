@@ -28,26 +28,42 @@
         .input-area {
             display: flex;
             margin-bottom: 20px;
+            gap: 10px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        #message-input {
+        #message-input, #rag-message-input {
             flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
+            padding: 12px;
+            border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 16px;
+            transition: border-color 0.3s ease;
+            background-color: white;
         }
-        #send-button {
-            padding: 10px 20px;
-            margin-left: 10px;
+        #message-input:focus, #rag-message-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+        #send-button, #rag-send-button {
+            padding: 12px 24px;
             background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
         }
-        #send-button:hover {
+        #send-button:hover, #rag-send-button:hover {
             background-color: #45a049;
+        }
+        #send-button:active, #rag-send-button:active {
+            transform: translateY(1px);
         }
         #output {
             white-space: pre-wrap;
@@ -110,19 +126,30 @@
         .tab-content.active {
             display: block;
         }
+        .message-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+        }
         .user-message {
             background-color: #e6f7ff;
             padding: 10px;
             border-radius: 5px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             font-weight: bold;
+            align-self: flex-end; /* 用户消息靠右 */
+            max-width: 70%; /* 限制宽度 */
+            word-wrap: break-word;
         }
         .ai-response {
             background-color: #f0f0f0;
             padding: 10px;
             border-radius: 5px;
-            margin-bottom: 20px;
-            white-space: pre-wrap;
+            margin-bottom: 5px;
+            align-self: flex-start; /* AI回答靠左 */
+            max-width: 70%; /* 限制宽度 */
+            word-wrap: break-word;
+            white-space: pre-wrap; /* 保持原有设置 */
         }
         /* 添加文件上传相关样式 */
         .upload-section, .text-section {
@@ -172,6 +199,7 @@
             100% { width: 0.8em; }
         }
     </style>
+    <script src="/js/marked.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -229,6 +257,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const identityId = crypto.randomUUID(); // 生成唯一的会话ID
+
             // 标签页切换
             const tabs = document.querySelectorAll('.tab');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -258,77 +288,52 @@
                 if (!message) return;
 
                 messageInput.value = '';
-                // 修改显示格式，添加等待动画
-                outputDiv.innerHTML += `<div class="user-message">问题: ${message}</div><div class="ai-response">回答: <span class="waiting-animation"></span>`;
+                // 创建新的消息容器
+                const messageContainer = document.createElement('div');
+                messageContainer.className = 'message-container';
+                messageContainer.innerHTML = `
+                    <div class="user-message">问题: ${message}</div>
+                    <div class="ai-response">回答: <span class="waiting-animation"></span></div>
+                `;
+                outputDiv.appendChild(messageContainer);
                 
                 if (eventSource) {
                     eventSource.close();
                 }
 
-                eventSource = new EventSource(`/ai/generateStreamInMemory?message=${encodeURIComponent(message)}`);
-                let textQueue = [];
-                let isProcessing = false;
+                eventSource = new EventSource(`/ai/generateStreamInMemory?identityId=${identityId}&message=${encodeURIComponent(message)}`);
+                let accumulatedText = "";
                 let firstChunkReceived = false;
 
-                function processTextQueue() {
-                    if (textQueue.length === 0 || isProcessing) return;
+                eventSource.onmessage = function(event) {
+                    const text = event.data;
+                    accumulatedText += text;
                     
-                    isProcessing = true;
-                    const text = textQueue.shift();
-                    
-                    // 当收到第一个文本块时，移除等待动画
                     if (!firstChunkReceived) {
                         firstChunkReceived = true;
-                        const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                        const lastResponseDiv = messageContainer.querySelector('.ai-response');
                         if (lastResponseDiv) {
                             lastResponseDiv.innerHTML = "回答: ";
                         }
                     }
-                    
-                    let index = 0;
-                    
-                    function displayNextChar() {
-                        if (index < text.length) {
-                            // 获取最后一个AI回答div
-                            const lastResponseDiv = document.querySelector('.ai-response:last-child');
-                            if (lastResponseDiv) {
-                                // 追加文本到最后一个回答div
-                                const currentContent = lastResponseDiv.innerHTML;
-                                lastResponseDiv.innerHTML = currentContent + text[index];
-                                outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
-                            }
-                            index++;
-                            setTimeout(displayNextChar, 20);
-                        } else {
-                            isProcessing = false;
-                            processTextQueue();
-                        }
-                    }
-                    
-                    displayNextChar();
-                }
 
-                eventSource.onmessage = function(event) {
-                    textQueue.push(event.data);
-                    processTextQueue();
+                    let htmlContent = marked.parse(accumulatedText).trim();
+                    const lastResponseDiv = messageContainer.querySelector('.ai-response');
+                    if (lastResponseDiv) {
+                        lastResponseDiv.innerHTML = "回答: " + htmlContent;
+                        outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
+                    }
                 };
 
                 eventSource.onerror = function() {
                     eventSource.close();
-                    const checkComplete = setInterval(() => {
-                        if (textQueue.length === 0 && !isProcessing) {
-                            // 如果没有收到任何文本，移除等待动画并显示错误消息
-                            if (!firstChunkReceived) {
-                                const lastResponseDiv = document.querySelector('.ai-response:last-child');
-                                if (lastResponseDiv) {
-                                    lastResponseDiv.innerHTML = "回答: 抱歉，无法获取回复。";
-                                }
-                            }
-                            outputDiv.innerHTML += '</div>';  // 关闭AI回答div
-                            outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
-                            clearInterval(checkComplete);
+                    if (!firstChunkReceived) {
+                        const lastResponseDiv = messageContainer.querySelector('.ai-response');
+                        if (lastResponseDiv) {
+                            lastResponseDiv.innerHTML = "回答: 抱歉，无法获取回复。";
                         }
-                    }, 100);
+                    }
+                    outputDiv.parentElement.scrollTop = outputDiv.parentElement.scrollHeight;
                 };
             }
 
@@ -350,77 +355,52 @@
                 if (!message) return;
 
                 ragMessageInput.value = '';
-                // 修改显示格式，添加等待动画
-                ragOutputDiv.innerHTML += `<div class="user-message">问题: ${message}</div><div class="ai-response">回答: <span class="waiting-animation"></span>`;
+                // 创建新的消息容器
+                const messageContainer = document.createElement('div');
+                messageContainer.className = 'message-container';
+                messageContainer.innerHTML = `
+                    <div class="user-message">问题: ${message}</div>
+                    <div class="ai-response">回答: <span class="waiting-animation"></span></div>
+                `;
+                ragOutputDiv.appendChild(messageContainer);
                 
                 if (ragEventSource) {
                     ragEventSource.close();
                 }
 
-                ragEventSource = new EventSource(`/rag/generateStream?message=${encodeURIComponent(message)}`);
-                let textQueue = [];
-                let isProcessing = false;
+                ragEventSource = new EventSource(`/rag/generateStream?identityId=${identityId}&message=${encodeURIComponent(message)}`);
+                let accumulatedText = "";
                 let firstChunkReceived = false;
 
-                function processTextQueue() {
-                    if (textQueue.length === 0 || isProcessing) return;
+                ragEventSource.onmessage = function(event) {
+                    const text = event.data;
+                    accumulatedText += text;
                     
-                    isProcessing = true;
-                    const text = textQueue.shift();
-                    
-                    // 当收到第一个文本块时，移除等待动画
                     if (!firstChunkReceived) {
                         firstChunkReceived = true;
-                        const lastResponseDiv = document.querySelector('.ai-response:last-child');
+                        const lastResponseDiv = messageContainer.querySelector('.ai-response');
                         if (lastResponseDiv) {
                             lastResponseDiv.innerHTML = "回答: ";
                         }
                     }
                     
-                    let index = 0;
-                    
-                    function displayNextChar() {
-                        if (index < text.length) {
-                            // 获取最后一个AI回答div
-                            const lastResponseDiv = document.querySelector('.ai-response:last-child');
-                            if (lastResponseDiv) {
-                                // 追加文本到最后一个回答div
-                                const currentContent = lastResponseDiv.innerHTML;
-                                lastResponseDiv.innerHTML = currentContent + text[index];
-                                ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
-                            }
-                            index++;
-                            setTimeout(displayNextChar, 20);
-                        } else {
-                            isProcessing = false;
-                            processTextQueue();
-                        }
+                    let htmlContent = marked.parse(accumulatedText).trim();
+                    const lastResponseDiv = messageContainer.querySelector('.ai-response');
+                    if (lastResponseDiv) {
+                        lastResponseDiv.innerHTML = "回答: " + htmlContent;
+                        ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
                     }
-                    
-                    displayNextChar();
-                }
-
-                ragEventSource.onmessage = function(event) {
-                    textQueue.push(event.data);
-                    processTextQueue();
                 };
 
                 ragEventSource.onerror = function() {
                     ragEventSource.close();
-                    const checkComplete = setInterval(() => {
-                        if (textQueue.length === 0 && !isProcessing) {
-                            // 如果没有收到任何文本，移除等待动画并显示错误消息
-                            if (!firstChunkReceived) {
-                                const lastResponseDiv = document.querySelector('.ai-response:last-child');
-                                if (lastResponseDiv) {
-                                    lastResponseDiv.innerHTML = "回答: 抱歉，无法获取回复。";
-                                }
-                            }
-                            ragOutputDiv.innerHTML += '</div>';  // 关闭AI回答div
-                            ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
-                            clearInterval(checkComplete);
+                    if (!firstChunkReceived) {
+                        const lastResponseDiv = messageContainer.querySelector('.ai-response');
+                        if (lastResponseDiv) {
+                            lastResponseDiv.innerHTML = "回答: 抱歉，无法获取回复。";
                         }
-                    }, 100);
+                    }
+                    ragOutputDiv.parentElement.scrollTop = ragOutputDiv.parentElement.scrollHeight;
                 };
             }
 

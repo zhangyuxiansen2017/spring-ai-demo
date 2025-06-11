@@ -11,6 +11,10 @@
                 "/projects"
             ]
         },
+        "fetch": {
+            "command": "docker",
+            "args": ["run", "-i", "--rm", "mcp/fetch"]
+        },
         "12306-mcp": {
             "command": "npx",
             "args": [
@@ -22,8 +26,20 @@
             "command": "npx",
             "args": ["-y", "@amap/amap-maps-mcp-server"],
             "env": {
-                "AMAP_MAPS_API_KEY": "你申请的key"
+                "AMAP_MAPS_API_KEY": "xxxx"
             }
+        },
+        "mcp-server-hotnews": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@wopal/mcp-server-hotnews"
+            ]
+        },
+        "datagov": {
+            "command": "datagov-mcp-server",
+            "args": [],
+            "env": {}
         }
     }
 }

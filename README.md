@@ -177,7 +177,7 @@ spring:
 ```bash
 # 克隆项目
  git clone <你的仓库地址>
- cd spring-ai-demo
+cd spring-ai-demo
 
 # 编译打包
 mvn clean package

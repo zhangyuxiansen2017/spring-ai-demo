@@ -57,14 +57,14 @@ public class RagController {
      * @return
      */
     @GetMapping("/generate")
-    public Map<String, String> generate(@RequestParam(value = "message") String message) {
+    public Map<String, String> generate(@RequestParam(value = "message") String message,@RequestParam(value = "identityId")String identityId) {
         List<Document> similarDocuments = vectorStore.doSimilaritySearch(
                 SearchRequest.builder().query(message).topK(3).build());
         String context = buildContext(similarDocuments);
 
         String prompt = "基于以下信息回答问题。如果无法从提供的信息中找到答案，请说明你不知道，不要编造答案。\n\n" +
                 "信息:\n" + context + "\n\n问题: " + message;
-        String content = this.chatClient.prompt(prompt).user(message).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).call().content();
+        String content = this.chatClient.prompt(prompt).user(message).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, identityId)).call().content();
         return Map.of("generation", content);
     }
 
@@ -75,7 +75,7 @@ public class RagController {
      * @return
      */
     @GetMapping(value = "/generateStream", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
-    public Flux<String> generateStream(@RequestParam(value = "message") String message) {
+    public Flux<String> generateStream(@RequestParam(value = "message") String message,@RequestParam(value = "identityId")String identityId) {
         //检索文档,使用doSimilaritySearch,检索出来的取前三个
         List<Document> similarDocuments = vectorStore.doSimilaritySearch(SearchRequest.builder().query(message).topK(3).build());
         String context = buildContext(similarDocuments);
@@ -85,7 +85,7 @@ public class RagController {
 
         UserMessage userMessage = new UserMessage(promptText);
         Prompt prompt = new Prompt(List.of(userMessage));
-        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "001")).stream().content();
+        return this.chatClient.prompt(prompt).advisors(a -> a.param(ChatMemory.CONVERSATION_ID, identityId)).stream().content();
     }
 
     /**
